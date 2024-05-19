@@ -1,15 +1,27 @@
-import asyncio
-import datetime
 import bson
+import json
 import pandas as pd
 
 
-async def read_bson_file(file_path):
+async def read_bson_file(file_path) -> list:
+    """
+    Read bson file
+    :param file_path: file path
+    :return: bson data
+    """
     with open(file_path, 'rb') as file:
         return bson.decode_all(file.read())
 
 
-async def aggregate_salary_data(bson_file_path, dt_from, dt_upto, group_type):
+async def aggregate_salary_data(bson_file_path, dt_from, dt_upto, group_type) -> dict or None:
+    """
+    Aggregate salary data
+    :param bson_file_path: bson file path
+    :param dt_from: datetime from
+    :param dt_upto: datetime upto
+    :param group_type: group type (hour, day, month)
+    :return: dict or None
+    """
     bson_data = await read_bson_file(bson_file_path)
 
     # Convert to DataFrame
@@ -44,26 +56,24 @@ async def aggregate_salary_data(bson_file_path, dt_from, dt_upto, group_type):
             'labels': grouped.index.strftime('%Y-%m-%dT%H:%M:%S').tolist()
         }
 
-        return result
+        return json.dumps(result)
 
     return None
 
 
-async def main():
-    # Test data
-    dt_from = datetime.datetime(2022, 9, 1, 0, 0, 0)
-    dt_upto = datetime.datetime(2022, 12, 31, 23, 59, 0)
-    group_type = 'month'
+async def parse_json_text(text) -> tuple:
+    """
+    Parse JSON message
+    :param text: message text
+    :return: dt_from, dt_upto, group_type
+    """
+    try:
+        data = json.loads(text)
+        dt_from = data['dt_from']
+        dt_upto = data['dt_upto']
+        group_type = data['group_type']
 
-    # Call function
-    result = await aggregate_salary_data('sample_collection.bson', dt_from, dt_upto, group_type)
-
-    exp_output = {
-        "dataset": [5906586, 5515874, 5889803, 6092634],
-        "labels": ["2022-09-01T00:00:00", "2022-10-01T00:00:00", "2022-11-01T00:00:00", "2022-12-01T00:00:00"]
-    }
-
-    print(result == exp_output)
-
-
-asyncio.run(main())
+        return dt_from, dt_upto, group_type
+    except Exception as e:
+        print(e)
+        return None, None, None
